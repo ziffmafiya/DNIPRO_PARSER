@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Скрипт для получения Chat ID из Telegram
+Скрипт для отримання Chat ID з Telegram
 """
 import requests
 import json
@@ -9,25 +9,25 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 
-# Загружаем .env из корневой директории
+# Завантажуємо .env з кореневої директорії
 BASE_DIR = Path(__file__).parent.absolute()
 ENV_PATH = BASE_DIR / ".env"
 
-print(f"🔍 Ищу .env файл: {ENV_PATH}")
+print(f"🔍 Шукаю .env файл: {ENV_PATH}")
 if ENV_PATH.exists():
-    print("✅ .env файл найден")
+    print("✅ .env файл знайдено")
     load_dotenv(ENV_PATH)
 else:
-    print("❌ .env файл не найден")
+    print("❌ .env файл не знайдено")
     load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-print(f"🔑 BOT_TOKEN: {'найден' if BOT_TOKEN else 'не найден'}")
+print(f"🔑 BOT_TOKEN: {'знайдено' if BOT_TOKEN else 'не знайдено'}")
 
 def get_chat_id():
-    """Получить Chat ID из последних сообщений"""
+    """Отримати Chat ID з останніх повідомлень"""
     if not BOT_TOKEN:
-        print("❌ BOT_TOKEN не найден в .env файле!")
+        print("❌ BOT_TOKEN не знайдено в .env файлі!")
         print("📝 Создайте .env файл на основе .env.example")
         return
     

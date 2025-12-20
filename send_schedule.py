@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Скрипт для отправки графиков отключений в Telegram
+Скрипт для відправки графіків відключень в Telegram
 """
 import os
 import sys
@@ -9,23 +9,23 @@ from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Добавляем src в путь для импорта модулей
+# Додаємо src в шлях для імпорту модулів
 sys.path.append(str(Path(__file__).parent / "src"))
 
 from telegram_notify import send_photo, send_message, send_stats_only, log
 
 def send_all_schedules(theme="light"):
-    """Отправить все доступные графики"""
+    """Відправити всі доступні графіки"""
     images_dir = Path("out/images")
     
     if not images_dir.exists():
-        print("❌ Папка out/images не найдена!")
+        print("❌ Папка out/images не знайдена!")
         return
     
-    # Формируем суффиксы для поиска
+    # Формуємо суфікси для пошуку
     theme_suffix = "-dark" if theme == "dark" else ""
     
-    # Ищем изображения с учетом темы
+    # Шукаємо зображення з урахуванням теми
     today_pattern = f"*today*{theme_suffix}*.png"
     tomorrow_pattern = f"*tomorrow*{theme_suffix}*.png"
     group_pattern = f"gpv-*-emergency{theme_suffix}-*.png"
@@ -41,7 +41,7 @@ def send_all_schedules(theme="light"):
     print(f"   📅 Завтра: {len(tomorrow_images)}")
     print(f"   👥 По группам: {len(group_images)}")
     
-    # Отправляем общий график на сегодня
+    # Відправляємо загальний графік на сьогодні
     if today_images:
         latest_today = max(today_images, key=lambda f: f.stat().st_mtime)
         print(f"📤 Отправляю общий график: {latest_today.name}")
@@ -53,7 +53,7 @@ def send_all_schedules(theme="light"):
         
         send_photo(str(latest_today), caption, with_stats=True)
     
-    # Отправляем график на завтра (если есть)
+    # Відправляємо графік на завтра (якщо є)
     if tomorrow_images:
         latest_tomorrow = max(tomorrow_images, key=lambda f: f.stat().st_mtime)
         print(f"📤 Отправляю график на завтра: {latest_tomorrow.name}")
@@ -66,13 +66,13 @@ def send_all_schedules(theme="light"):
         send_photo(str(latest_tomorrow), caption, with_stats=False)
 
 def send_group_schedule(group_number, theme="light"):
-    """Отправить график для конкретной группы"""
+    """Відправити графік для конкретної групи"""
     images_dir = Path("out/images")
     
-    # Формируем суффиксы для поиска
+    # Формуємо суфікси для пошуку
     theme_suffix = "-dark" if theme == "dark" else ""
     
-    # Ищем изображения для группы с учетом темы
+    # Шукаємо зображення для групи з урахуванням теми
     pattern = f"gpv-{group_number}-emergency{theme_suffix}-*.png"
     group_images = list(images_dir.glob(pattern))
     
@@ -81,7 +81,7 @@ def send_group_schedule(group_number, theme="light"):
         print(f"   Искал по шаблону: {pattern}")
         return
     
-    # Берем самое новое изображение
+    # Беремо найновіше зображення
     latest_image = max(group_images, key=lambda f: f.stat().st_mtime)
     print(f"📤 Отправляю график для группы {group_number}: {latest_image.name}")
     
@@ -94,12 +94,12 @@ def send_group_schedule(group_number, theme="light"):
     send_photo(str(latest_image), caption, with_stats=False)
 
 def send_statistics_only():
-    """Отправить только статистику без изображений"""
+    """Відправити тільки статистику без зображень"""
     print("📊 Отправляю статистику...")
     send_stats_only()
 
 def list_available_images():
-    """Показать доступные изображения"""
+    """Показати доступні зображення"""
     images_dir = Path("out/images")
     
     if not images_dir.exists():
@@ -115,7 +115,7 @@ def list_available_images():
         print("   python src/gener_im_dark.py")
         return
     
-    # Группируем изображения по типам
+    # Групуємо зображення за типами
     light_images = [img for img in images if "-dark" not in img.name]
     dark_images = [img for img in images if "-dark" in img.name]
     
@@ -136,14 +136,14 @@ def list_available_images():
     show_image_group(dark_images, "Темные", "🌙")
 
 def main():
-    """Главная функция с меню"""
+    """Головна функція з меню"""
     print("📱 ОТПРАВКА ГРАФИКОВ В TELEGRAM")
     print("=" * 50)
     
     if len(sys.argv) > 1:
         command = sys.argv[1].lower()
         
-        # Парсим дополнительные параметры
+        # Парсимо додаткові параметри
         theme = "light"
         
         if "--dark" in sys.argv:
@@ -168,7 +168,7 @@ def main():
         show_menu()
 
 def show_help():
-    """Показать справку по командам"""
+    """Показати довідку по командах"""
     print("\n📋 Доступные команды:")
     print("python send_schedule.py all              - Отправить все графики (светлые)")
     print("python send_schedule.py all --dark       - Отправить все графики (темные)")
@@ -179,7 +179,7 @@ def show_help():
     print("python send_schedule.py                  - Показать интерактивное меню")
 
 def show_menu():
-    """Показать интерактивное меню"""
+    """Показати інтерактивне меню"""
     while True:
         print("\n📋 Выберите действие:")
         print("1. ☀️  Отправить все графики (светлые)")
