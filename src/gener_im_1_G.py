@@ -87,7 +87,7 @@ class Config:
     SMALL_FONT_SIZE = 16
     LEGEND_FONT_SIZE = 16
     
-    # Кольори
+    # Кольори (світла тема)
     BG = (250, 250, 250)
     TABLE_BG = (255, 255, 255)
     GRID_COLOR = (139, 139, 139)
@@ -98,16 +98,30 @@ class Config:
     OUTAGE_COLOR = (147, 170, 210)      # Світла немає
     POSSIBLE_COLOR = (255, 220, 115)    # Можливе відключення
     AVAILABLE_COLOR = (255, 255, 255)   # Світло є
-    #FIRST_HALF_COLOR = (147, 170, 210)  # Перші 30 хв немає
-    #SECOND_HALF_COLOR = (147, 170, 210) # Другі 30 хв немає
-    #MFIRST_HALF_COLOR = (255, 220, 115) # Можливо перші 30 хв немає
-    #MSECOND_HALF_COLOR = (255, 220, 115) # Можливо другі 30 хв немає
     HEADER_BG = (245, 247, 250)
     FOOTER_COLOR = (140, 140, 140)
+    LEGEND_BG = (248, 249, 250)
     
     # Інше
     TIMEZONE = "Europe/Kyiv"
     OUTPUT_SCALE = 3
+
+class DarkConfig(Config):
+    """Конфігурація для темної теми"""
+    # Темні кольори
+    BG = (30, 30, 30)
+    TABLE_BG = (45, 45, 45)
+    GRID_COLOR = (100, 100, 100)
+    TEXT_COLOR = (255, 255, 255)
+    HIGHLIGHT_COLOR = (255, 255, 255)
+    HIGHLIGHT_BG = (80, 60, 20)        # Темно-жовтий
+    HIGHLIGHT_BORDER = (200, 200, 200)
+    OUTAGE_COLOR = (80, 120, 180)      # Темно-синій
+    POSSIBLE_COLOR = (180, 140, 60)     # Темно-жовтий
+    AVAILABLE_COLOR = (60, 60, 60)     # Темно-сірий
+    HEADER_BG = (50, 50, 50)
+    FOOTER_COLOR = (180, 180, 180)
+    LEGEND_BG = (40, 40, 40)
 
 class FontManager:
     """Менеджер для роботи з шрифтами"""
@@ -170,10 +184,12 @@ class DataProcessor:
 class ImageRenderer:
     """Клас для рендерингу зображення"""
     
-    def __init__(self, data: dict, json_path: Path, group_name: str):
+    def __init__(self, data: dict, json_path: Path, group_name: str, dark_theme: bool = False):
         self.data = data
         self.json_path = json_path
         self.group_name = group_name
+        self.dark_theme = dark_theme
+        self.config = DarkConfig if dark_theme else Config
         self.font_manager = FontManager()
         self.processor = DataProcessor()
         
@@ -207,13 +223,13 @@ class ImageRenderer:
         n_hours = 24
         n_rows = len(day_keys)
         
-        width = (Config.SPACING * 2 + Config.LEFT_COL_W + 
-                n_hours * Config.CELL_W)
-        height = (Config.SPACING * 2 + Config.HEADER_H + 
-                 Config.HOUR_ROW_H + n_rows * Config.CELL_H + 
-                 Config.LEGEND_H + 40 + Config.HEADER_SPACING)
+        width = (self.config.SPACING * 2 + self.config.LEFT_COL_W + 
+                n_hours * self.config.CELL_W)
+        height = (self.config.SPACING * 2 + self.config.HEADER_H + 
+                 self.config.HOUR_ROW_H + n_rows * self.config.CELL_H + 
+                 self.config.LEGEND_H + 40 + self.config.HEADER_SPACING)
         
-        return Image.new("RGB", (width, height), Config.BG)
+        return Image.new("RGB", (width, height), self.config.BG)
     
     def _draw_header(self, draw: ImageDraw.Draw) -> None:
         """Малювати заголовок з двома частинами"""
