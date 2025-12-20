@@ -373,21 +373,40 @@ def render_single_date(data: dict, day_ts: int, day_key: str, output_filename: s
         y = table_y0 + r*CELL_H
         draw.line([(table_x0, y), (table_x1, y)], fill=GRID_COLOR)
 
-    # --- Легенда ---
+    # --- Легенда з покращеним дизайном ---
     legend_states = ["yes", "no", "maybe"]
     legend_y_start = table_y1 + 15
     box_size = 18
-    gap = 15
+    gap = 20
     
-    x_cursor = SPACING
+    # Рамка навколо всієї легенди
+    legend_padding = 10
+    total_width = 0
+    legend_items = []
+    
     for state in legend_states:
         color = get_color_for_state(state)
         description = get_description_for_state(state, preset)
         text_bbox = draw.textbbox((0,0), description, font=font_legend)
         w_text = text_bbox[2] - text_bbox[0]
-        
+        legend_items.append((color, description, w_text))
+        total_width += box_size + 6 + w_text + gap
+    total_width -= gap  # Останній gap не потрібен
+    
+    legend_box_x0 = SPACING - legend_padding
+    legend_box_y0 = legend_y_start - legend_padding
+    legend_box_x1 = SPACING + total_width + legend_padding
+    legend_box_y1 = legend_y_start + box_size + legend_padding
+    
+    # Малюємо рамку легенди
+    draw.rounded_rectangle([legend_box_x0, legend_box_y0, legend_box_x1, legend_box_y1], 
+                         radius=8, fill=(248, 249, 250), outline=GRID_COLOR, width=2)
+    
+    x_cursor = SPACING
+    for color, description, w_text in legend_items:
+        # Квадрат з рамкою
         draw.rectangle([x_cursor, legend_y_start, x_cursor + box_size, legend_y_start + box_size], 
-                      fill=color, outline=GRID_COLOR)
+                      fill=color, outline=GRID_COLOR, width=2)
         
         # Используем anchor для точного выравнивания по центру
         text_x = x_cursor + box_size + 6
@@ -406,6 +425,14 @@ def render_single_date(data: dict, day_ts: int, day_key: str, output_filename: s
     pub_y = legend_y_start + box_size + 20
     draw.text((pub_x, pub_y), pub_label, fill=FOOTER_COLOR, font=font_small)
 
+    # Додаємо дату в назву файлу
+    current_date = datetime.now(ZoneInfo('Europe/Kyiv')).strftime("%Y-%m-%d")
+    filename_parts = output_filename.split('.')
+    if len(filename_parts) > 1:
+        output_filename = f"{filename_parts[0]}-{current_date}.{filename_parts[1]}"
+    else:
+        output_filename = f"{output_filename}-{current_date}"
+    
     out_path = OUT_DIR / output_filename
     scale = 3
     img_resized = img.resize((img.width*scale, img.height*scale), resample=Image.LANCZOS)
@@ -415,8 +442,8 @@ def render_single_date(data: dict, day_ts: int, day_key: str, output_filename: s
 # --- Головна функція рендерингу ---
 def render(data: dict, json_path: Path):
     fact = data.get("fact", {})
-    if "today" not in fact or "data" not in fact:
-        raise ValueError("JSON не містить ключі 'fact.today' або 'fact.data'")
+    if "data" not in fact:
+        raise ValueError("JSON не містить ключ 'fact.data'")
 
     # Отримуємо всі дати для генерації
     dates_to_generate = get_dates_to_generate(fact["data"])

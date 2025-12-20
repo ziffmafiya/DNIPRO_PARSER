@@ -485,7 +485,7 @@ class ImageRenderer:
         return time_type.get(state, descriptions.get(state, "Невідомий стан"))
     
     def _draw_legend(self, draw: ImageDraw.Draw, day_keys: list) -> None:
-        """Малювати легенду в один рядок"""
+        """Малювати легенду в один рядок з покращеним дизайном"""
         n_rows = len(day_keys)
         table_y1 = (Config.SPACING + Config.HEADER_H + 
                    Config.HOUR_ROW_H + Config.HEADER_SPACING + 
@@ -500,19 +500,37 @@ class ImageRenderer:
         
         legend_y = table_y1 + 15
         box_size = 20
-        gap = 15
+        gap = 20
         x_cursor = Config.SPACING
         
         font_legend = self.font_manager.get_font(Config.LEGEND_FONT_SIZE)
+        
+        # Рамка навколо всієї легенди
+        legend_padding = 10
+        total_width = 0
+        for col, text, state in legend_items:
+            text_bbox = draw.textbbox((0, 0), text, font=font_legend)
+            w_text = text_bbox[2] - text_bbox[0]
+            total_width += box_size + 6 + w_text + gap
+        total_width -= gap  # Останній gap не потрібен
+        
+        legend_box_x0 = x_cursor - legend_padding
+        legend_box_y0 = legend_y - legend_padding
+        legend_box_x1 = x_cursor + total_width + legend_padding
+        legend_box_y1 = legend_y + box_size + legend_padding
+        
+        # Малюємо рамку легенди
+        draw.rounded_rectangle([legend_box_x0, legend_box_y0, legend_box_x1, legend_box_y1], 
+                             radius=8, fill=(248, 249, 250), outline=Config.GRID_COLOR, width=2)
         
         for col, text, state in legend_items:
             text_bbox = draw.textbbox((0, 0), text, font=font_legend)
             w_text = text_bbox[2] - text_bbox[0]
             block_w = box_size + 6 + w_text
             
-            # Звичайний квадрат для станів yes/no/maybe
+            # Квадрат з рамкою
             draw.rectangle([x_cursor, legend_y, x_cursor + box_size, legend_y + box_size], 
-                          fill=col, outline=Config.GRID_COLOR)
+                          fill=col, outline=Config.GRID_COLOR, width=2)
             
             # Используем anchor для точного выравнивания по центру
             text_x = x_cursor + box_size + 6
@@ -558,7 +576,10 @@ class ImageRenderer:
     def _save_image(self, img: Image.Image) -> None:
         """Зберегти зображення"""
         safe_group_name = self.group_name.replace('GPV', '').replace('.', '-')
-        out_name = OUT_DIR / f"gpv-{safe_group_name}-emergency.png"
+        
+        # Додаємо дату в назву файлу
+        current_date = datetime.now(ZoneInfo(Config.TIMEZONE)).strftime("%Y-%m-%d")
+        out_name = OUT_DIR / f"gpv-{safe_group_name}-emergency-{current_date}.png"
         
         img_resized = img.resize((img.width * Config.OUTPUT_SCALE, 
                                 img.height * Config.OUTPUT_SCALE), 
