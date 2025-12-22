@@ -2,9 +2,8 @@ name: Hourly Dnipro Parser
 
 on:
   schedule:
-    # Запуск в 0 минут каждого часа (UTC)
     - cron: '0 * * * *'
-  workflow_dispatch: # Кнопка для ручного запуска
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,6 +15,9 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
+        with:
+          # Важно для корректного пуша обратно
+          fetch-depth: 0 
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,22 +33,30 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run parser script
-        # Мы убрали env с токенами, так как в скрипте они больше не используются
         run: python src/main.py --parse
+
+      - name: Debug - List Files
+        # Эта команда покажет в логах, где именно создались файлы
+        run: |
+          echo "Содержимое корня репозитория:"
+          ls -F
+          echo "Содержимое папки out (если есть):"
+          ls -R out/ || echo "Папка out не найдена!"
 
       - name: Commit and Push changes
         run: |
-          # Настройка бота для коммита
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Добавляем все изменения (JSON в out/ и PNG в out/images/)
-          git add out/
+          # Добавляем абсолютно все изменения и новые файлы
+          git add -A
           
-          # Проверяем, есть ли что-то новое. Если данные обновились — пушим.
+          # Проверяем статус перед коммитом
+          git status
+          
           if ! git diff --cached --quiet; then
             git commit -m "Update charts and data: $(date +'%Y-%m-%d %H:%M')"
-            git push
+            git push origin main
           else
-            echo "Никаких изменений в графиках не обнаружено."
+            echo "Никаких изменений не обнаружено даже после принудительного добавления."
           fi
