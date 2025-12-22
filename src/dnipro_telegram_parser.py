@@ -12,13 +12,13 @@ import os
 
 TZ = ZoneInfo("Europe/Kyiv")
 URL = "https://t.me/s/cek_info"
-OUTPUT_FILE = "out/Dneproblenergo.json"
+OUTPUT_FILE = "output/Dneproblenergo.json"
 
 LOG_DIR = "logs"
 FULL_LOG_FILE = os.path.join(LOG_DIR, "full_log.log")
 
 os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs("out", exist_ok=True)
+os.makedirs("output", exist_ok=True)
 
 # Ключові слова для пошуку постів з графіками
 KEYWORDS = [
