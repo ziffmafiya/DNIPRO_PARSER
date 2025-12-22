@@ -2,7 +2,7 @@ name: Hourly Dnipro Parser
 
 on:
   schedule:
-    # Запуск каждый час в 0 минут (UTC)
+    # Запуск в 0 минут каждого часа (UTC)
     - cron: '0 * * * *'
   workflow_dispatch: # Кнопка для ручного запуска
 
@@ -27,17 +27,26 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Install Playwright Browsers and System Deps
+      - name: Install Playwright Browsers
         run: npx playwright install chromium --with-deps
 
       - name: Run parser script
-        # Добавлен флаг --parse для активации сбора данных
+        # Мы убрали env с токенами, так как в скрипте они больше не используются
         run: python src/main.py --parse
 
       - name: Commit and Push changes
         run: |
+          # Настройка бота для коммита
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add .
-          # Если изменений в данных нет, команда пропустит коммит без ошибки
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update parsed data: $(date)" && git push)
+          
+          # Добавляем все изменения (JSON в out/ и PNG в out/images/)
+          git add out/
+          
+          # Проверяем, есть ли что-то новое. Если данные обновились — пушим.
+          if ! git diff --cached --quiet; then
+            git commit -m "Update charts and data: $(date +'%Y-%m-%d %H:%M')"
+            git push
+          else
+            echo "Никаких изменений в графиках не обнаружено."
+          fi
