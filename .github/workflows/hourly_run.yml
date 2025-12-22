@@ -2,9 +2,9 @@ name: Hourly Dnipro Parser
 
 on:
   schedule:
-    # Запуск в 0 минут каждого часа (UTC)
+    # Запуск каждый час в 0 минут (по времени UTC)
     - cron: '0 * * * *'
-  workflow_dispatch: # Позволяет запускать скрипт вручную кнопкой в интерфейсе
+  workflow_dispatch: # Кнопка для ручного запуска
 
 permissions:
   contents: write
@@ -27,15 +27,18 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Install Playwright Browsers
+        # Установка браузеров (Chromium) и системных зависимостей для корректной работы парсера
+        run: python -m playwright install chromium --with-deps
+
       - name: Run parser script
-        run: python main.py
-        # Если ваш главный файл называется иначе, замените main.py на ваше название
+        # Указываем путь к файлу внутри папки src
+        run: python src/main.py
 
       - name: Commit and Push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .
-          # Проверка, есть ли изменения, чтобы не падать с ошибкой, если ничего не изменилось
+          # Проверяем наличие изменений. Если данных нет - ничего не делаем, если есть - пушим.
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update parsed data: $(date)" && git push)
-          
