@@ -7,28 +7,11 @@ from datetime import datetime
 from pathlib import Path
 
 # Імпорти модулів проекту
-from telegram_notify import send_error, send_message, send_photo
-import gener_im_1_G
-import gener_im_full
-import upload_to_github
-from utils import clean_old_files, clean_log
-import dnipro_telegram_parser
-
-BASE = Path(__file__).parent.parent.absolute()
-LOG_DIR = "logs"
-LOG_FILE = os.path.join(LOG_DIR, "main.log")
-FULL_LOG_FILE = os.path.join(LOG_DIR, "full_log.log")
-json_file = "Dneproblenergo.json"
-json_path = BASE / "out" / json_file
-os.makedirs(LOG_DIR, exist_ok=True)
-
-
-def log(message):
-    timestamp = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%Y-%m-%d %H:%M:%S")
-    line = f"{timestamp} [main] {message}"
-    print(line)
-    with open(FULL_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+from .config import config
+from .logger import log
+from .telegram_notify import send_error, send_message, send_photo
+from .utils import clean_old_files, clean_log
+import src.dnipro_telegram_parser as dnipro_telegram_parser
 
 
 def parse_args():
@@ -38,12 +21,13 @@ def parse_args():
 
 
 def main():
+    """Головна функція для запуску повного циклу парсингу та генерації"""
     # Видаляємо зображення старше 5 днів у кількох папках
     folders = ["in", "DEBUG_IMAGES"]
     deleted_total = 0
 
     for folder in folders:
-        deleted = clean_old_files(folder, 5, [".png", ".jpg", ".jpeg", ".webp"])
+        deleted = clean_old_files(folder, config.CLEANUP_DAYS, config.CLEANUP_EXTENSIONS)
         count = len(deleted)
         deleted_total += count
 
@@ -54,7 +38,8 @@ def main():
         log(f"📦 Разом видалено {deleted_total} старих файлів у вибраних папках")
 
     # Чистимо лог від даних старше 3 днів
-    removed = clean_log(FULL_LOG_FILE, days=3)
+    log_file = config.LOGS_DIR / "full_log.log"
+    removed = clean_log(str(log_file), days=config.LOG_RETENTION_DAYS)
     if removed is not None:
         if removed > 0:
             log(f"🧹 Логи очищено — видалено {removed} старих рядків")
@@ -72,23 +57,40 @@ def main():
             if result:
                 log("✔️ Парсинг завершено успішно — JSON оновлено")
                 
-                # ---- ГЕНЕРАЦІЯ ЗОБРАЖЕНЬ ----
-                try:
-                    log(f"▶️ Запускаю генерацію PNG з {json_path}")
-                    gener_im_1_G.generate_from_json(json_path)
-                    log("✔️ Генерація PNG завершена")
-                except Exception as e:
-                    log(f"❌ Помилка при генерації зображень по групах: {e}")
-                    # send_error(f"❌ Помилка генерації PNG: {e}") # ВІДКЛЮЧЕНО
-                    return False
+                # ---- ГЕНЕРАЦІЯ ЗОБРАЖЕНЬ (НОВА HTML СИСТЕМА) ----
+                async def generate_images():
+                    try:
+                        json_path = config.get_json_path()
+                        log(f"▶️ Запускаю генерацію зображень через HTML рендерер з {json_path}")
+                        
+                        # Імпортуємо новий HTML рендерер
+                        from .html_renderer import HTMLRenderer
+                        
+                        # Створюємо рендерер та генеруємо всі зображення
+                        renderer = HTMLRenderer(str(json_path))
+                        results = await renderer.generate_all_images("light")
+                        
+                        # Підраховуємо згенеровані зображення
+                        total_images = 0
+                        total_images += len(results.get('full', []))
+                        total_images += len(results.get('groups', []))
+                        for group_results in results.get('individual', {}).values():
+                            total_images += len(group_results)
+                        
+                        log(f"✔️ Генерація HTML зображень завершена - створено {total_images} файлів")
+                        
+                        # Очищуємо тимчасові файли
+                        renderer.cleanup_temp()
+                        return True
+                        
+                    except Exception as e:
+                        log(f"❌ Помилка при генерації HTML зображень: {e}")
+                        import traceback
+                        log(traceback.format_exc())
+                        return False
                 
-                try:
-                    log(f"▶️ Запускаю генерацію зображення gpv-all-today.png з {json_path}")
-                    gener_im_full.generate_from_json(json_path)
-                    log("✔️ Генерація зображення gpv-all-today.png завершена")
-                except Exception as e:
-                    log(f"❌ Помилка при генерації зображення gpv-all-today.png: {e}")
-                    # send_error(f"❌ Помилка при генерації зображення gpv-all-today.png: {e}") # ВІДКЛЮЧЕНО
+                # Запускаємо генерацію зображень
+                if not asyncio.run(generate_images()):
                     return False
 
                 # ---- ЗАПУСК UPLOAD GitHub (ВІДКЛЮЧЕНО ДЛЯ GITHUB ACTIONS) ----
@@ -117,12 +119,12 @@ def main():
                 #     # Визначаємо яке фото відправляти
                 #     if len(schedule_timestamps) >= 2:
                 #         # Є дві дати (сьогодні + завтра)
-                #         photo_path = "out/images/gpv-all-tomorrow.png"
+                #         photo_path = "output/images/gpv-all-tomorrow.png"
                 #         caption = "🔄 <b>Дніпрообленерго</b>\nГрафік на завтра\n#Дніпрообленерго"
                 #         log("📸 Відправляю графік на ЗАВТРА (є 2 дати)")
                 #     else:
                 #         # Тільки одна дата (сьогодні)
-                #         photo_path = "out/images/gpv-all-today.png"
+                #         photo_path = "output/images/gpv-all-today.png"
                 #         caption = "🔄 <b>Дніпрообленерго</b>\nГрафік на сьогодні\n#Дніпрообленерго"
                 #         log("📸 Відправляю графік на СЬОГОДНІ (1 дата)")
                 #     

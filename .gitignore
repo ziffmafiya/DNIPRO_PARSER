@@ -30,6 +30,12 @@ wheels/
 logs/*.log
 *.log
 
+# Temporary files
+temp_render/
+
+# Playwright
+.playwright/
+
 # IDE
 .vscode/
 .idea/
@@ -44,3 +50,15 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Keep directory structure but ignore content
+output/images/.gitkeep
+logs/.gitkeep
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+*.spec

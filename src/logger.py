@@ -10,13 +10,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# Базова директорія проекту
-BASE_DIR = Path(__file__).parent.parent.absolute()
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+from .config import config
 
-# Налаштування логування
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+# Налаштування логування з конфігурації
+LOG_LEVEL = config.LOG_LEVEL.upper()
 MAX_LOG_SIZE = int(os.getenv("MAX_LOG_SIZE", "10")) * 1024 * 1024  # МБ в байти
 BACKUP_COUNT = 7  # Зберігати 7 файлів (тиждень)
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Kyiv")
@@ -51,7 +48,7 @@ def setup_logger(name: str, log_file: str = "full_log.log") -> logging.Logger:
     logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
     
     # Ротаційний файловий хендлер
-    log_path = LOG_DIR / log_file
+    log_path = config.LOGS_DIR / log_file
     file_handler = logging.handlers.RotatingFileHandler(
         log_path,
         maxBytes=MAX_LOG_SIZE,
@@ -86,7 +83,7 @@ def cleanup_old_logs(days_to_keep: int = 7):
     try:
         cutoff_date = datetime.now() - timedelta(days=days_to_keep)
         
-        for log_file in LOG_DIR.glob("*.log*"):
+        for log_file in config.LOGS_DIR.glob("*.log*"):
             if log_file.stat().st_mtime < cutoff_date.timestamp():
                 log_file.unlink()
                 print(f"Видалено старий лог: {log_file}")
@@ -102,13 +99,13 @@ def get_log_stats() -> dict:
         Словник зі статистикою
     """
     try:
-        log_files = list(LOG_DIR.glob("*.log*"))
+        log_files = list(config.LOGS_DIR.glob("*.log*"))
         total_size = sum(f.stat().st_size for f in log_files)
         
         return {
             "files_count": len(log_files),
             "total_size_mb": round(total_size / (1024 * 1024), 2),
-            "log_dir": str(LOG_DIR),
+            "log_dir": str(config.LOGS_DIR),
             "oldest_log": min(log_files, key=lambda f: f.stat().st_mtime).name if log_files else None,
             "newest_log": max(log_files, key=lambda f: f.stat().st_mtime).name if log_files else None
         }

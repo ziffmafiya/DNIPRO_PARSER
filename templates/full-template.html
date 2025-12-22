@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Графік можливих відключень — Шаблон</title>
+  <link rel="stylesheet" href="schedule-shared.css">
+</head>
+<body>
+  <!-- Контейнер для повного графіка (сьогодні/завтра + тиждень) -->
+  <div class="container">
+    <!-- Заголовок з номером групи (додається динамічно через JS) -->
+    <h1>Графік відключень:</h1>
+    
+    <!-- Дата останнього оновлення (заповнюється через JS) -->
+    <p class="muted" id="lastUpdated"></p>
+    
+    <!-- Таблиця на сьогодні/завтра -->
+    <div class="panel table-wrap">
+      <table id="today"></table>
+    </div>
+    
+    <!-- Заголовок тижневого графіка -->
+    <h1>Графік можливих відключень на тиждень:</h1>
+    
+    <!-- Тижнева таблиця -->
+    <div class="panel table-wrap">
+      <table id="matrix"></table>
+    </div>
+    
+    <!-- Легенда з поясненням станів -->
+    <div class="legend" aria-label="Легенда">
+      <div class="legend-item"><span class="legend-box state-yes" title="Світло є"></span> Світло є</div>
+      <div class="legend-item"><span class="legend-box state-no" title="Світла нема"><img class="cell-icon" src="icons/no.svg" width="20" height="20" alt="" aria-hidden="true"></span> Світла нема</div>
+      <div class="legend-item"><span class="legend-box state-maybe" title="Можливо відключення"><img class="cell-icon" src="icons/maybe.svg" width="20" height="20" alt="" aria-hidden="true"></span> Можливо відключення</div>
+      <div class="legend-item"><span class="legend-box state-mfirst" title="Світла можливо не буде перші 30 хв"><img class="cell-icon" src="icons/mfirst.svg" width="20" height="20" alt="" aria-hidden="true"></span> Перші 30 хв.</div>
+      <div class="legend-item"><span class="legend-box state-msecond" title="Світла можливо не буде другі 30 хв"><img class="cell-icon" src="icons/msecond.svg" width="20" height="20" alt="" aria-hidden="true"></span> Другі 30 хв.</div>
+    </div>
+    
+    <!-- Метадані (закоментовано, можна увімкнути для налагодження) -->
+<!--    <p class="muted hash" id="meta"></p>-->
+  </div>
+  
+  <!-- Підключення спільного JavaScript -->
+  <script src="schedule-shared.js"></script>
+  <script>
+    // Ініціалізація повного режиму відображення
+    Schedule.scheduleInit({ mode: 'full' });
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summary Item — Картка відключень</title>
+  <link rel="stylesheet" href="schedule-shared.css">
+</head>
+<body>
+  <!-- Контейнер для компактної картки групи -->
+  <div class="container">
+    <!-- Біла картка з закругленнями, без JS. Всі стилі — зі спільного CSS. -->
+    <div class="panel summary-card">
+      <!-- Верхній ряд: ліворуч номер черги (без слова "Черга"), праворуч текст "Черга" стилем як заголовок -->
+      <h1 class="summary-title">
+        <!-- Номер групи (заповнюється через JS) -->
+        <span class="group-badge group-badge-left">1.2</span>
+        <!-- Текст замінюється на regionAffiliation через JS -->
+        Черга
+      </h1>
+
+      <!-- Дата рядком над описом (заповнюється через JS) -->
+      <p class="summary-note summary-date">Сьогодні (.. ..),</p>
+
+      <!-- Опис під заголовком (заповнюється через JS) -->
+      <p class="summary-note summary-status">світло буде відсутнє</p>
+
+      <!-- Рядок OFF/ON + список інтервалів праворуч -->
+      <div class="summary-row">
+        <!-- Статус бейдж (ON/OFF, змінюється через JS) -->
+        <span class="legend-box state-no badge-off status-badge">OFF</span>
+        <!-- Список часових інтервалів (заповнюється через JS) -->
+        <div class="summary-intervals">
+          <div>—</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Метадані (закоментовано, можна увімкнути для налагодження) -->
+<!--    <p class="muted small hash" id="meta"></p>-->
+  </div>
+  
+  <!-- Підключення спільного JavaScript -->
+  <script src="schedule-shared.js"></script>
+  <script>
+    // Рендеринг картки з використанням того ж потоку даних, що й інші шаблони
+    Schedule.scheduleInit({ mode: 'summary' });
+  </script>
+</body>
+</html>

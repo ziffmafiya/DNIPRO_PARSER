@@ -2,6 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 Скрипт для відправки графіків відключень в Telegram
+Працює з новими HTML-генерованими зображеннями
+
+Основні функції:
+- Відправка всіх доступних графіків
+- Відправка графіків для конкретної групи
+- Відправка тільки статистики
+- Показ списку доступних зображень
+- Інтерактивне меню для вибору дій
 """
 import os
 import sys
@@ -10,147 +18,154 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # Додаємо src в шлях для імпорту модулів
-sys.path.append(str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent))
 
-from telegram_notify import send_photo, send_message, send_stats_only, log
+from src.telegram_notify import send_photo, send_message, send_stats_only, log
+from src.config import config
 
-def send_all_schedules(theme="light"):
-    """Відправити всі доступні графіки"""
-    images_dir = Path("out/images")
+def send_all_schedules():
+    """Відправити всі доступні графіки в Telegram"""
+    images_dir = config.IMAGES_DIR
     
     if not images_dir.exists():
-        print("❌ Папка out/images не знайдена!")
+        print("❌ Папка output/images не знайдена!")
         return
     
-    # Формуємо суфікси для пошуку
-    theme_suffix = "-dark" if theme == "dark" else ""
+    # Паттерни для HTML-генерованих зображень (тільки світла тема)
+    full_pattern = f"gpv-full-*.png"
+    groups_today_pattern = f"gpv-all-groups-*.png"
+    groups_tomorrow_pattern = f"gpv-all-groups-tomorrow-*.png"
     
-    # Шукаємо зображення з урахуванням теми
-    today_pattern = f"*today*{theme_suffix}*.png"
-    tomorrow_pattern = f"*tomorrow*{theme_suffix}*.png"
-    group_pattern = f"gpv-*-emergency{theme_suffix}-*.png"
+    # Виключаємо темні зображення
+    full_images = [img for img in images_dir.glob(full_pattern) if "-dark" not in img.name]
+    groups_today_images = [img for img in images_dir.glob(groups_today_pattern) if "-dark" not in img.name]
+    groups_tomorrow_images = [img for img in images_dir.glob(groups_tomorrow_pattern) if "-dark" not in img.name]
     
-    today_images = list(images_dir.glob(today_pattern))
-    tomorrow_images = list(images_dir.glob(tomorrow_pattern))
-    group_images = list(images_dir.glob(group_pattern))
+    print(f"🔍 Знайдено зображень:")
+    print(f"   📊 Повних графіків: {len(full_images)}")
+    print(f"   📅 Матриць груп (сьогодні): {len(groups_today_images)}")
+    print(f"   📅 Матриць груп (завтра): {len(groups_tomorrow_images)}")
     
-    theme_name = "темные" if theme == "dark" else "светлые"
-    
-    print(f"🔍 Найдено {theme_name} изображений:")
-    print(f"   📅 Сегодня: {len(today_images)}")
-    print(f"   📅 Завтра: {len(tomorrow_images)}")
-    print(f"   👥 По группам: {len(group_images)}")
-    
-    # Відправляємо загальний графік на сьогодні
-    if today_images:
-        latest_today = max(today_images, key=lambda f: f.stat().st_mtime)
-        print(f"📤 Отправляю общий график: {latest_today.name}")
+    # Відправляємо повний графік (сьогодні + тиждень)
+    if full_images:
+        latest_full = max(full_images, key=lambda f: f.stat().st_mtime)
+        print(f"📤 Відправляю повний графік: {latest_full.name}")
         
-        theme_emoji = "🌙" if theme == "dark" else "☀️"
+        caption = f"📊 <b>Повний графік відключень</b> ☀️\n\n"
+        caption += f"Сьогодні/завтра + тижневий прогноз"
         
-        caption = f"📊 <b>График отключений на сегодня</b> {theme_emoji}\n\n"
-        caption += f"Все группы на одном изображении ({theme_name})"
-        
-        send_photo(str(latest_today), caption, with_stats=True)
+        send_photo(str(latest_full), caption, with_stats=True)
     
-    # Відправляємо графік на завтра (якщо є)
-    if tomorrow_images:
-        latest_tomorrow = max(tomorrow_images, key=lambda f: f.stat().st_mtime)
-        print(f"📤 Отправляю график на завтра: {latest_tomorrow.name}")
+    # Відправляємо матрицю груп на сьогодні
+    if groups_today_images:
+        latest_today = max(groups_today_images, key=lambda f: f.stat().st_mtime)
+        print(f"📤 Відправляю матрицю груп (сьогодні): {latest_today.name}")
         
-        theme_emoji = "🌙" if theme == "dark" else "☀️"
+        caption = f"📊 <b>Всі групи на сьогодні</b> ☀️\n\n"
+        caption += f"Матриця відключень по всіх групах"
         
-        caption = f"📊 <b>График отключений на завтра</b> {theme_emoji}\n\n"
-        caption += f"Все группы на одном изображении ({theme_name})"
+        send_photo(str(latest_today), caption, with_stats=False)
+    
+    # Відправляємо матрицю груп на завтра (якщо є)
+    if groups_tomorrow_images:
+        latest_tomorrow = max(groups_tomorrow_images, key=lambda f: f.stat().st_mtime)
+        print(f"📤 Відправляю матрицю груп (завтра): {latest_tomorrow.name}")
+        
+        caption = f"📊 <b>Всі групи на завтра</b> ☀️\n\n"
+        caption += f"Матриця відключень по всіх групах"
         
         send_photo(str(latest_tomorrow), caption, with_stats=False)
 
-def send_group_schedule(group_number, theme="light"):
-    """Відправити графік для конкретної групи"""
-    images_dir = Path("out/images")
+def send_group_schedule(group_number):
+    """
+    Відправити графік для конкретної групи
     
-    # Формуємо суфікси для пошуку
-    theme_suffix = "-dark" if theme == "dark" else ""
+    Args:
+        group_number: Номер групи у форматі "1-1" (для GPV1.1)
+    """
+    images_dir = config.IMAGES_DIR
     
-    # Шукаємо зображення для групи з урахуванням теми
-    pattern = f"gpv-{group_number}-emergency{theme_suffix}-*.png"
-    group_images = list(images_dir.glob(pattern))
+    # Шукаємо зображення для групи (тільки світлі)
+    pattern = f"gpv-{group_number}-emergency-*.png"
+    group_images = [img for img in images_dir.glob(pattern) if "-dark" not in img.name]
     
     if not group_images:
-        print(f"❌ Не найдено изображений для группы {group_number}")
-        print(f"   Искал по шаблону: {pattern}")
+        print(f"❌ Не знайдено зображень для групи {group_number}")
+        print(f"   Шукав за шаблоном: {pattern}")
         return
     
     # Беремо найновіше зображення
     latest_image = max(group_images, key=lambda f: f.stat().st_mtime)
-    print(f"📤 Отправляю график для группы {group_number}: {latest_image.name}")
+    print(f"📤 Відправляю графік для групи {group_number}: {latest_image.name}")
     
-    theme_name = "темная" if theme == "dark" else "светлая"
-    theme_emoji = "🌙" if theme == "dark" else "☀️"
-    
-    caption = f"📊 <b>График отключений - Группа {group_number}</b> {theme_emoji}\n\n"
-    caption += f"Детальный график на 2 дня ({theme_name} тема)"
+    caption = f"📊 <b>Графік відключень - Група {group_number}</b> ☀️\n\n"
+    caption += f"Детальний графік на 2 дні"
     
     send_photo(str(latest_image), caption, with_stats=False)
 
 def send_statistics_only():
     """Відправити тільки статистику без зображень"""
-    print("📊 Отправляю статистику...")
+    print("📊 Відправляю статистику...")
     send_stats_only()
 
 def list_available_images():
-    """Показати доступні зображення"""
-    images_dir = Path("out/images")
+    """Показати доступні зображення з детальною інформацією"""
+    images_dir = config.IMAGES_DIR
     
     if not images_dir.exists():
-        print("❌ Папка out/images не найдена!")
+        print("❌ Папка output/images не знайдена!")
         return
     
     images = list(images_dir.glob("*.png"))
     if not images:
-        print("❌ Изображения не найдены!")
-        print("💡 Сначала сгенерируйте изображения:")
-        print("   python src/gener_im_full.py")
-        print("   python src/gener_im_1_G.py")
-        print("   python src/gener_im_dark.py")
+        print("❌ Зображення не знайдені!")
+        print("💡 Спочатку згенеруйте зображення:")
+        print("   python generate_all_images.py")
+        print("   або python test_html_renderer.py")
         return
     
-    # Групуємо зображення за типами
+    # Показуємо тільки світлі зображення
     light_images = [img for img in images if "-dark" not in img.name]
-    dark_images = [img for img in images if "-dark" in img.name]
     
-    print(f"📁 Найдено {len(images)} изображений:")
+    print(f"📁 Знайдено {len(light_images)} зображень:")
     print("=" * 60)
     
-    def show_image_group(images, title, emoji):
-        if images:
-            print(f"\n{emoji} {title} ({len(images)} шт.):")
-            print("-" * 40)
-            for img in sorted(images):
-                size_mb = img.stat().st_size / (1024 * 1024)
-                mtime = datetime.fromtimestamp(img.stat().st_mtime, ZoneInfo("Europe/Kyiv"))
-                print(f"📄 {img.name}")
-                print(f"   Размер: {size_mb:.1f} МБ | Создан: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    show_image_group(light_images, "Светлые", "☀️")
-    show_image_group(dark_images, "Темные", "🌙")
+    if light_images:
+        print(f"\n☀️ Світлі ({len(light_images)} шт.):")
+        print("-" * 40)
+        
+        # Групуємо за типами
+        full_imgs = [img for img in light_images if "gpv-full" in img.name]
+        groups_imgs = [img for img in light_images if "gpv-all-groups" in img.name]
+        emergency_imgs = [img for img in light_images if "emergency" in img.name and "gpv-all" not in img.name]
+        week_imgs = [img for img in light_images if "week" in img.name]
+        summary_imgs = [img for img in light_images if "summary" in img.name]
+        
+        def show_subgroup(imgs, subtype):
+            if imgs:
+                print(f"  📊 {subtype}:")
+                for img in sorted(imgs):
+                    size_mb = img.stat().st_size / (1024 * 1024)
+                    mtime = datetime.fromtimestamp(img.stat().st_mtime, ZoneInfo("Europe/Kyiv"))
+                    print(f"    📄 {img.name}")
+                    print(f"       Розмір: {size_mb:.1f} МБ | Створено: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        show_subgroup(full_imgs, "Повні графіки")
+        show_subgroup(groups_imgs, "Матриці груп")
+        show_subgroup(emergency_imgs, "Аварійні графіки")
+        show_subgroup(week_imgs, "Тижневі графіки")
+        show_subgroup(summary_imgs, "Картки")
 
 def main():
-    """Головна функція з меню"""
-    print("📱 ОТПРАВКА ГРАФИКОВ В TELEGRAM")
+    """Головна функція з обробкою аргументів командного рядка"""
+    print("📱 ВІДПРАВКА ГРАФІКІВ В TELEGRAM")
     print("=" * 50)
     
     if len(sys.argv) > 1:
         command = sys.argv[1].lower()
         
-        # Парсимо додаткові параметри
-        theme = "light"
-        
-        if "--dark" in sys.argv:
-            theme = "dark"
-        
         if command == "all":
-            send_all_schedules(theme)
+            send_all_schedules()
         elif command == "stats":
             send_statistics_only()
         elif command == "list":
@@ -158,76 +173,60 @@ def main():
         elif command.startswith("group"):
             if len(sys.argv) > 2:
                 group_number = sys.argv[2]
-                send_group_schedule(group_number, theme)
+                send_group_schedule(group_number)
             else:
-                print("❌ Укажите номер группы: python send_schedule.py group 1-1")
+                print("❌ Вкажіть номер групи: python send_schedule.py group 1-1")
         else:
-            print(f"❌ Неизвестная команда: {command}")
+            print(f"❌ Невідома команда: {command}")
             show_help()
     else:
         show_menu()
 
 def show_help():
-    """Показати довідку по командах"""
-    print("\n📋 Доступные команды:")
-    print("python send_schedule.py all              - Отправить все графики (светлые)")
-    print("python send_schedule.py all --dark       - Отправить все графики (темные)")
-    print("python send_schedule.py stats            - Отправить только статистику")
-    print("python send_schedule.py group 1-1        - Отправить график группы 1.1 (светлый)")
-    print("python send_schedule.py group 1-1 --dark - Отправить график группы 1.1 (темный)")
-    print("python send_schedule.py list             - Показать доступные изображения")
-    print("python send_schedule.py                  - Показать интерактивное меню")
+    """Показати довідку по доступних командах"""
+    print("\n📋 Доступні команди:")
+    print("python send_schedule.py all              - Відправити всі графіки")
+    print("python send_schedule.py stats            - Відправити тільки статистику")
+    print("python send_schedule.py group 1-1        - Відправити графік групи 1.1")
+    print("python send_schedule.py list             - Показати доступні зображення")
+    print("python send_schedule.py                  - Показати інтерактивне меню")
 
 def show_menu():
-    """Показати інтерактивне меню"""
+    """Показати інтерактивне меню для вибору дій"""
     while True:
-        print("\n📋 Выберите действие:")
-        print("1. ☀️  Отправить все графики (светлые)")
-        print("2. 🌙  Отправить все графики (темные)")
-        print("3. 📈  Отправить только статистику")
-        print("4. 👥  Отправить график группы")
-        print("5. 📁  Показать доступные изображения")
-        print("6. ❌  Выход")
+        print("\n📋 Виберіть дію:")
+        print("1. ☀️  Відправити всі графіки")
+        print("2. 📈  Відправити тільки статистику")
+        print("3. 👥  Відправити графік групи")
+        print("4. 📁  Показати доступні зображення")
+        print("5. ❌  Вихід")
         
         try:
-            choice = input("\n👉 Ваш выбор (1-6): ").strip()
+            choice = input("\n👉 Ваш вибір (1-5): ").strip()
             
             if choice == "1":
-                send_all_schedules("light")
+                send_all_schedules()
             elif choice == "2":
-                send_all_schedules("dark")
-            elif choice == "3":
                 send_statistics_only()
-            elif choice == "4":
-                group = input("👥 Введите номер группы (например: 1-1): ").strip()
+            elif choice == "3":
+                group = input("👥 Введіть номер групи (наприклад: 1-1): ").strip()
                 if group:
-                    print("\n🎨 Выберите тему:")
-                    print("1. ☀️  Светлая")
-                    print("2. 🌙  Темная")
-                    
-                    theme_choice = input("👉 Ваш выбор (1-2): ").strip()
-                    
-                    if theme_choice == "1":
-                        send_group_schedule(group, "light")
-                    elif theme_choice == "2":
-                        send_group_schedule(group, "dark")
-                    else:
-                        print("❌ Неверный выбор темы")
+                    send_group_schedule(group)
                 else:
-                    print("❌ Номер группы не указан")
-            elif choice == "5":
+                    print("❌ Номер групи не вказано")
+            elif choice == "4":
                 list_available_images()
-            elif choice == "6":
-                print("👋 До свидания!")
+            elif choice == "5":
+                print("👋 До побачення!")
                 break
             else:
-                print("❌ Неверный выбор. Попробуйте снова.")
+                print("❌ Неправильний вибір. Спробуйте знову.")
                 
         except KeyboardInterrupt:
-            print("\n👋 До свидания!")
+            print("\n👋 До побачення!")
             break
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
+            print(f"❌ Помилка: {e}")
 
 if __name__ == "__main__":
     main()

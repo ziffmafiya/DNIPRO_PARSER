@@ -1,4 +1,4 @@
-name: Hourly Dnipro Parser
+name: 🔄 Hourly Dnipro Parser
 
 on:
   schedule:
@@ -14,50 +14,116 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository code
+      - name: 📥 Checkout repository code
         uses: actions/checkout@v4
         with:
           # Важно для корректного пуша обратно
           fetch-depth: 0 
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Install Playwright Browsers
-        run: npx playwright install chromium --with-deps
+      - name: 🎭 Install Playwright Browsers
+        run: playwright install chromium --with-deps
 
-      - name: Run parser script
-        run: python src/main.py --parse
-
-      - name: Debug - List Files
-        # Эта команда покажет в логах, где именно создались файлы
+      - name: 📁 Create necessary directories
         run: |
-          echo "Содержимое корня репозитория:"
-          ls -F
-          echo "Содержимое папки out (если есть):"
-          ls -R out/ || echo "Папка out не найдена!"
+          mkdir -p output/images
+          mkdir -p logs
+          echo "📁 Создание папок завершено"
 
-      - name: Commit and Push changes
+      - name: 🔧 Setup environment
+        run: |
+          # Создаем .env файл с секретами GitHub
+          echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
+          echo "ADMIN_CHAT_ID=${{ secrets.ADMIN_CHAT_ID }}" >> .env
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
+          echo "✅ Environment настроен"
+
+      - name: 🚀 Run parser script (новая структура)
+        run: python -m src.main --parse
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔍 Debug - List Files (новая структура)
+        run: |
+          echo "📋 Содержимое корня репозитория:"
+          ls -la
+          echo ""
+          echo "📁 Содержимое папки output (новая структура):"
+          ls -la output/ || echo "❌ Папка output не найдена!"
+          echo ""
+          echo "🖼️ Содержимое папки output/images:"
+          ls -la output/images/ || echo "❌ Папка output/images не найдена!"
+          echo ""
+          echo "📄 JSON файлы в output:"
+          ls -la output/*.json || echo "❌ JSON файлы не найдены!"
+          echo ""
+          echo "📝 Логи:"
+          ls -la logs/ || echo "❌ Папка logs не найдена!"
+
+      - name: 📊 Show generation statistics
+        run: |
+          echo "📊 Статистика генерации:"
+          if [ -d "output/images" ]; then
+            echo "🖼️ Количество изображений: $(find output/images -name "*.png" | wc -l)"
+            echo "📏 Размер папки images: $(du -sh output/images 2>/dev/null || echo '0')"
+          fi
+          if [ -d "output" ]; then
+            echo "📄 JSON файлы: $(find output -name "*.json" | wc -l)"
+          fi
+          if [ -d "logs" ]; then
+            echo "📝 Лог файлы: $(find logs -name "*.log" | wc -l)"
+          fi
+
+      - name: 💾 Commit and Push changes (обновлено для новой структуры)
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Добавляем абсолютно все изменения и новые файлы
-          git add -A
+          # Добавляем файлы из новой структуры
+          git add output/*.json || echo "ℹ️ Нет JSON файлов для добавления"
+          git add output/images/*.png || echo "ℹ️ Нет PNG файлов для добавления"
+          git add logs/*.log || echo "ℹ️ Нет лог файлов для добавления"
           
           # Проверяем статус перед коммитом
+          echo "📋 Git статус:"
           git status
           
           if ! git diff --cached --quiet; then
-            git commit -m "Update charts and data: $(date +'%Y-%m-%d %H:%M')"
+            echo "✅ Найдены изменения, создаем коммит..."
+            git commit -m "🔄 Update charts and data: $(date +'%Y-%m-%d %H:%M UTC') [v2.0 HTML system]"
             git push origin main
+            echo "🚀 Изменения успешно отправлены!"
           else
-            echo "Никаких изменений не обнаружено даже после принудительного добавления."
+            echo "ℹ️ Никаких изменений не обнаружено."
           fi
+
+      - name: 📈 Workflow Summary
+        run: |
+          echo "## 🎯 Результаты выполнения" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Статистика файлов:" >> $GITHUB_STEP_SUMMARY
+          if [ -d "output/images" ]; then
+            echo "- 🖼️ Изображений: $(find output/images -name "*.png" | wc -l)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -d "output" ]; then
+            echo "- 📄 JSON файлов: $(find output -name "*.json" | wc -l)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚡ Система:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️ Архитектура: HTML/CSS рендеринг (v2.0)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎭 Рендерер: Playwright + Chromium" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Структура: Новая организованная структура" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🕐 Время выполнения:" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏰ Завершено: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

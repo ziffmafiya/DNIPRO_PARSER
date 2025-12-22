@@ -1,0 +1,93 @@
+name: 🧪 Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        playwright install chromium
+    
+    - name: 📁 Create test environment
+      run: |
+        cp .env.example .env
+        mkdir -p output/images logs
+    
+    - name: 🧪 Test HTML Renderer
+      run: |
+        python tests/test_html_renderer.py
+    
+    - name: 🎯 Test Centering
+      run: |
+        python tests/test_centering.py
+    
+    - name: 📋 Test Import Structure
+      run: |
+        python -c "from src.html_renderer import HTMLRenderer; print('✅ HTML Renderer import OK')"
+        python -c "from src.telegram_notify import log; print('✅ Telegram notify import OK')"
+        python -c "from src.utils import clean_old_files; print('✅ Utils import OK')"
+        python -c "from src.config import config; print('✅ Config import OK')"
+        python -c "from src.logger import log; print('✅ Logger import OK')"
+    
+    - name: 🔍 Validate HTML Templates (новая структура)
+      run: |
+        python -c "
+        from pathlib import Path
+        templates = ['full-template.html', 'emergency-template.html', 'week-template.html', 'groups-template.html', 'summary-item.html']
+        for template in templates:
+            path = Path('templates') / template
+            assert path.exists(), f'Template {template} not found'
+            print(f'✅ {template} exists')
+        print('✅ All HTML templates validated')
+        "
+    
+    - name: 🎨 Check CSS and JS (новая структура)
+      run: |
+        python -c "
+        from pathlib import Path
+        assert (Path('templates') / 'css' / 'schedule-shared.css').exists(), 'CSS file not found'
+        assert (Path('templates') / 'js' / 'schedule-shared.js').exists(), 'JS file not found'
+        print('✅ CSS and JS files exist')
+        "
+    
+    - name: 🔧 Test Configuration
+      run: |
+        python -c "
+        from src.config import config
+        print(f'✅ Base dir: {config.BASE_DIR}')
+        print(f'✅ Templates dir: {config.TEMPLATES_DIR}')
+        print(f'✅ Output dir: {config.OUTPUT_DIR}')
+        print(f'✅ Images dir: {config.IMAGES_DIR}')
+        print('✅ Configuration test passed')
+        "
+    
+    - name: 📊 Test Project Structure
+      run: |
+        echo "🔍 Проверка структуры проекта:"
+        echo "📁 Основные папки:"
+        ls -la | grep "^d" | grep -E "(src|templates|output|tests|docs|scripts)"
+        echo ""
+        echo "📄 Основные файлы:"
+        ls -la | grep -E "(Makefile|run.sh|requirements.txt|README.md)"
+        echo ""
+        echo "✅ Структура проекта соответствует стандарту"

@@ -1,7 +1,11 @@
-playwright
-requests
-#BeautifulSoup4
-chromium
-Pillow
-#python-telegram-bot==20.3
-dotenv
+# HTML Rendering System
+playwright>=1.40.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Image Processing (legacy support)
+Pillow>=10.0.0
+
+# Optional dependencies
+# BeautifulSoup4>=4.12.0
+# python-telegram-bot==20.3
