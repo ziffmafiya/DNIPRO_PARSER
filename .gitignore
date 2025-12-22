@@ -30,11 +30,6 @@ wheels/
 logs/*.log
 *.log
 
-# Output files
-out/*.json
-out/images/*.png
-out/images/*.jpg
-
 # IDE
 .vscode/
 .idea/
