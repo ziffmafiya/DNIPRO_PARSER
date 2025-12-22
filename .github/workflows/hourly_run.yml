@@ -2,7 +2,8 @@ name: Hourly Dnipro Parser
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    # Запуск каждые 5 минут
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
