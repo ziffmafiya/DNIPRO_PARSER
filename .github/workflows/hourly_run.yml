@@ -89,15 +89,8 @@ jobs:
             echo "ℹ️ Папка output/images не найдена"
           fi
 
-      - name: 🚀 Run parser script (новая структура)
-        run: python -m src.main --parse
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🔍 Monitor schedule updates
-        run: python -m src.main --monitor
+      - name: 🚀 Run parser and monitor (оптимизированно)
+        run: python -m src.main --parse --monitor
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}

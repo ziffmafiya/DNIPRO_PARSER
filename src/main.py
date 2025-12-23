@@ -96,7 +96,87 @@ def main():
             log(f"❌ Ошибка применения обновления: {e}")
             return False
     
-    # ---- МОНИТОРИНГ ОБНОВЛЕНИЙ ----
+    # ---- КОМБИНИРОВАННЫЙ РЕЖИМ: ПАРСИНГ + МОНИТОРИНГ ----
+    if args.parse and args.monitor:
+        log("🔄 Запускаю комбинированный режим: парсинг + мониторинг")
+        
+        # Сначала парсинг
+        parse_success = False
+        try:
+            log("📱 Запускаю парсинг Telegram-каналу Дніпро ОЕ")
+            result = asyncio.run(dnipro_telegram_parser.main())
+            
+            if result:
+                log("✔️ Парсинг завершено успішно — JSON оновлено")
+                parse_success = True
+            else:
+                log("ℹ️ Парсинг завершено — дані не змінились")
+                parse_success = True
+                
+        except Exception as e:
+            log(f"❌ Помилка при парсингу Telegram: {e}")
+            import traceback
+            log(traceback.format_exc())
+            return False
+        
+        # Затем мониторинг обновлений
+        updates_found = False
+        if parse_success:
+            try:
+                log("🔍 Запускаю мониторинг обновлений графиков")
+                result = asyncio.run(telegram_updates_monitor.main())
+                
+                if result:
+                    log("✔️ Найдены и применены обновления графиков")
+                    updates_found = True
+                else:
+                    log("ℹ️ Новых обновлений не найдено")
+                    
+            except Exception as e:
+                log(f"❌ Ошибка мониторинга обновлений: {e}")
+                import traceback
+                log(traceback.format_exc())
+                # Продолжаем выполнение даже если мониторинг не удался
+        
+        # Генерируем изображения ОДИН РАЗ в конце
+        if parse_success:
+            async def generate_images():
+                try:
+                    json_path = config.get_json_path()
+                    if updates_found:
+                        log(f"▶️ Генерация изображений после парсинга и обновлений")
+                    else:
+                        log(f"▶️ Генерация изображений после парсинга")
+                    
+                    from .html_renderer import HTMLRenderer
+                    renderer = HTMLRenderer(str(json_path))
+                    results = await renderer.generate_all_images("light")
+                    
+                    total_images = 0
+                    total_images += len(results.get('full', []))
+                    total_images += len(results.get('groups', []))
+                    for group_results in results.get('individual', {}).values():
+                        total_images += len(group_results)
+                    
+                    log(f"✔️ Генерация завершена - создано {total_images} файлов")
+                    renderer.cleanup_temp()
+                    return True
+                    
+                except Exception as e:
+                    log(f"❌ Ошибка генерации изображений: {e}")
+                    import traceback
+                    log(traceback.format_exc())
+                    return False
+            
+            if asyncio.run(generate_images()):
+                log("🎉 Комбинированный режим завершен успешно")
+                return True
+            else:
+                return False
+        
+        return False
+    
+    # ---- МОНИТОРИНГ ОБНОВЛЕНИЙ (ОТДЕЛЬНО) ----
     if args.monitor:
         log("🔍 Запускаю мониторинг обновлений графиков")
         try:
@@ -144,7 +224,7 @@ def main():
             log(traceback.format_exc())
             return False
     
-    # ---- ПАРСИНГ TELEGRAM-КАНАЛУ ----
+    # ---- ПАРСИНГ TELEGRAM-КАНАЛУ (ОТДЕЛЬНО) ----
     if args.parse:
         log("📱 Запускаю парсинг Telegram-каналу Дніпро ОЕ")
         try:
@@ -256,6 +336,7 @@ def main():
         log("   Примеры:")
         log("     python3 src/main.py --parse")
         log("     python3 src/main.py --monitor")
+        log("     python3 src/main.py --parse --monitor  # Комбинированный режим")
         log('     python3 src/main.py --update "відключення підчерги 4.2 з 01:00 до 05:00"')
 
 
