@@ -167,17 +167,14 @@ jobs:
             
             if [ "$CHANGED_FILES" -gt 0 ]; then
               # Формируем сообщение коммита
-              COMMIT_MSG="🔄 Update charts and data: $(date +'%Y-%m-%d %H:%M UTC') [v2.0 HTML system]"
+              COMMIT_MSG="🔄 Update charts and data: $(date +'%Y-%m-%d %H:%M UTC') [v2.1 HTML system]"
               
               if [ "$DELETED_FILES" -gt 0 ]; then
-                COMMIT_MSG="$COMMIT_MSG
-
-🗑️ Cleaned up $DELETED_FILES old images"
+                COMMIT_MSG="$COMMIT_MSG - Cleaned up $DELETED_FILES old images"
               fi
               
               if [ "$ADDED_FILES" -gt 0 ]; then
-                COMMIT_MSG="$COMMIT_MSG
-➕ Added $ADDED_FILES new images"
+                COMMIT_MSG="$COMMIT_MSG - Added $ADDED_FILES new images"
               fi
               
               echo "✅ Создаем коммит с сообщением:"
