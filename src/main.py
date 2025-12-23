@@ -12,11 +12,15 @@ from .logger import log
 from .telegram_notify import send_error, send_message, send_photo
 from .utils import clean_old_files, clean_log
 import src.dnipro_telegram_parser as dnipro_telegram_parser
+import src.telegram_updates_monitor as telegram_updates_monitor
+from .schedule_updates_parser import update_schedule_from_message
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Dnipro Oblenergo parser")
     parser.add_argument("--parse", "-p", action="store_true", help="Запустити парсинг Telegram-каналу")
+    parser.add_argument("--monitor", "-m", action="store_true", help="Моніторинг оновлень графіків")
+    parser.add_argument("--update", "-u", type=str, help="Застосувати оновлення з тексту повідомлення")
     return parser.parse_args()
 
 
@@ -47,6 +51,98 @@ def main():
         log("⚠️ Файла логів ще не існує — очищення пропущено")
     
     args = parse_args()
+    
+    # ---- ОБНОВЛЕНИЕ ГРАФИКА ИЗ ТЕКСТА ----
+    if args.update:
+        log("📝 Применяю обновление графика из текста сообщения")
+        try:
+            success = update_schedule_from_message(args.update)
+            if success:
+                log("✔️ Обновление успешно применено")
+                
+                # Генерируем обновленные изображения
+                async def regenerate_images():
+                    try:
+                        json_path = config.get_json_path()
+                        log(f"▶️ Перегенерация изображений после обновления")
+                        
+                        from .html_renderer import HTMLRenderer
+                        renderer = HTMLRenderer(str(json_path))
+                        results = await renderer.generate_all_images("light")
+                        
+                        total_images = 0
+                        total_images += len(results.get('full', []))
+                        total_images += len(results.get('groups', []))
+                        for group_results in results.get('individual', {}).values():
+                            total_images += len(group_results)
+                        
+                        log(f"✔️ Перегенерация завершена - обновлено {total_images} файлов")
+                        renderer.cleanup_temp()
+                        return True
+                        
+                    except Exception as e:
+                        log(f"❌ Ошибка перегенерации изображений: {e}")
+                        return False
+                
+                if asyncio.run(regenerate_images()):
+                    log("🎉 Обновление графика завершено успешно")
+                    return True
+                else:
+                    return False
+            else:
+                log("⚠️ Обновление не было применено")
+                return False
+        except Exception as e:
+            log(f"❌ Ошибка применения обновления: {e}")
+            return False
+    
+    # ---- МОНИТОРИНГ ОБНОВЛЕНИЙ ----
+    if args.monitor:
+        log("🔍 Запускаю мониторинг обновлений графиков")
+        try:
+            result = asyncio.run(telegram_updates_monitor.main())
+            
+            if result:
+                log("✔️ Найдены и применены обновления графиков")
+                
+                # Генерируем обновленные изображения
+                async def regenerate_images():
+                    try:
+                        json_path = config.get_json_path()
+                        log(f"▶️ Перегенерация изображений после обновлений")
+                        
+                        from .html_renderer import HTMLRenderer
+                        renderer = HTMLRenderer(str(json_path))
+                        results = await renderer.generate_all_images("light")
+                        
+                        total_images = 0
+                        total_images += len(results.get('full', []))
+                        total_images += len(results.get('groups', []))
+                        for group_results in results.get('individual', {}).values():
+                            total_images += len(group_results)
+                        
+                        log(f"✔️ Перегенерация завершена - обновлено {total_images} файлов")
+                        renderer.cleanup_temp()
+                        return True
+                        
+                    except Exception as e:
+                        log(f"❌ Ошибка перегенерации изображений: {e}")
+                        return False
+                
+                if asyncio.run(regenerate_images()):
+                    log("🎉 Мониторинг и обновление завершены успешно")
+                    return True
+                else:
+                    return False
+            else:
+                log("ℹ️ Новых обновлений не найдено")
+                return True
+                
+        except Exception as e:
+            log(f"❌ Ошибка мониторинга обновлений: {e}")
+            import traceback
+            log(traceback.format_exc())
+            return False
     
     # ---- ПАРСИНГ TELEGRAM-КАНАЛУ ----
     if args.parse:
@@ -153,8 +249,14 @@ def main():
             log(traceback.format_exc())
             return False
     else:
-        log("ℹ️ Використайте --parse (-p) для запуску парсингу Telegram-каналу")
-        log("   Приклад: python3 src/main.py --parse")
+        log("ℹ️ Доступные команды:")
+        log("   --parse (-p)    - Парсинг Telegram-каналу")
+        log("   --monitor (-m)  - Мониторинг обновлений графиков")
+        log("   --update (-u)   - Применить обновление из текста")
+        log("   Примеры:")
+        log("     python3 src/main.py --parse")
+        log("     python3 src/main.py --monitor")
+        log('     python3 src/main.py --update "відключення підчерги 4.2 з 01:00 до 05:00"')
 
 
 if __name__ == "__main__":
