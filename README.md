@@ -207,6 +207,21 @@ python scripts/quick_send.py             # Швидка відправка
 python scripts/setup_html_renderer.py
 ```
 
+### Очистка старых изображений
+```bash
+# Автоматическая очистка (удаляет изображения старше 3 дней)
+python scripts/cleanup_old_images.py
+
+# Тестовый режим - показать что будет удалено
+python scripts/cleanup_old_images.py --dry-run
+
+# Сохранить только за последние 5 дней
+python scripts/cleanup_old_images.py --days 5
+
+# Очистить другую папку
+python scripts/cleanup_old_images.py --dir custom/images/
+```
+
 ## 📱 Telegram інтеграція
 
 ### Налаштування бота

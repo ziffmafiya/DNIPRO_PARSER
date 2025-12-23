@@ -47,6 +47,48 @@ jobs:
           echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
           echo "✅ Environment настроен"
 
+      - name: 🧹 Clean old images before generation
+        run: |
+          echo "🗑️ Очистка старых изображений..."
+          
+          if [ -d "output/images" ]; then
+            echo "📊 Изображений до очистки: $(find output/images -name "*.png" | wc -l)"
+            
+            # Получаем текущую дату в формате YYYYMMDD
+            CURRENT_DATE=$(date +%Y%m%d)
+            YESTERDAY=$(date -d "1 day ago" +%Y%m%d)
+            DAY_BEFORE_YESTERDAY=$(date -d "2 days ago" +%Y%m%d)
+            
+            echo "📅 Текущая дата: $CURRENT_DATE"
+            echo "📅 Вчера: $YESTERDAY" 
+            echo "📅 Позавчера: $DAY_BEFORE_YESTERDAY"
+            
+            # Удаляем изображения НЕ с сегодняшней, вчерашней или позавчерашней датой
+            DELETED_COUNT=0
+            for file in output/images/*.png; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                # Извлекаем дату из имени файла (формат: gpv-*-YYYYMMDD-HHMMSS.png)
+                if [[ $filename =~ -([0-9]{8})- ]]; then
+                  file_date="${BASH_REMATCH[1]}"
+                  
+                  # Если дата файла не сегодня, не вчера и не позавчера - удаляем
+                  if [[ "$file_date" != "$CURRENT_DATE" && "$file_date" != "$YESTERDAY" && "$file_date" != "$DAY_BEFORE_YESTERDAY" ]]; then
+                    echo "🗑️ Удаляем старое изображение: $filename (дата: $file_date)"
+                    rm "$file"
+                    ((DELETED_COUNT++))
+                  fi
+                fi
+              fi
+            done
+            
+            echo "📊 Изображений после очистки: $(find output/images -name "*.png" | wc -l)"
+            echo "🗑️ Удалено старых изображений: $DELETED_COUNT"
+            echo "✅ Очистка завершена"
+          else
+            echo "ℹ️ Папка output/images не найдена"
+          fi
+
       - name: 🚀 Run parser script (новая структура)
         run: python -m src.main --parse
         env:
@@ -90,10 +132,13 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Добавляем файлы из новой структуры
+          # Добавляем новые файлы из новой структуры
           git add output/*.json || echo "ℹ️ Нет JSON файлов для добавления"
           git add output/images/*.png || echo "ℹ️ Нет PNG файлов для добавления"
           git add logs/*.log || echo "ℹ️ Нет лог файлов для добавления"
+          
+          # Добавляем удаленные файлы (если есть)
+          git add -u output/images/ || echo "ℹ️ Нет удаленных изображений"
           
           # Проверяем статус перед коммитом
           echo "📋 Git статус:"
@@ -103,11 +148,35 @@ jobs:
           if ! git diff --cached --quiet; then
             # Проверяем количество измененных файлов
             CHANGED_FILES=$(git diff --cached --name-only | wc -l)
-            echo "� Измеенено файлов: $CHANGED_FILES"
+            ADDED_FILES=$(git diff --cached --name-status | grep -c "^A" || echo "0")
+            DELETED_FILES=$(git diff --cached --name-status | grep -c "^D" || echo "0")
+            MODIFIED_FILES=$(git diff --cached --name-status | grep -c "^M" || echo "0")
+            
+            echo "📊 Статистика изменений:"
+            echo "  📁 Всего файлов: $CHANGED_FILES"
+            echo "  ➕ Добавлено: $ADDED_FILES"
+            echo "  ➖ Удалено: $DELETED_FILES"
+            echo "  📝 Изменено: $MODIFIED_FILES"
             
             if [ "$CHANGED_FILES" -gt 0 ]; then
-              echo "✅ Найдены изменения, создаем коммит..."
-              git commit -m "🔄 Update charts and data: $(date +'%Y-%m-%d %H:%M UTC') [v2.0 HTML system]"
+              # Формируем сообщение коммита
+              COMMIT_MSG="🔄 Update charts and data: $(date +'%Y-%m-%d %H:%M UTC') [v2.0 HTML system]"
+              
+              if [ "$DELETED_FILES" -gt 0 ]; then
+                COMMIT_MSG="$COMMIT_MSG
+
+🗑️ Cleaned up $DELETED_FILES old images"
+              fi
+              
+              if [ "$ADDED_FILES" -gt 0 ]; then
+                COMMIT_MSG="$COMMIT_MSG
+➕ Added $ADDED_FILES new images"
+              fi
+              
+              echo "✅ Создаем коммит с сообщением:"
+              echo "$COMMIT_MSG"
+              
+              git commit -m "$COMMIT_MSG"
               git push origin main
               echo "🚀 Изменения успешно отправлены!"
             else
@@ -136,3 +205,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🕐 Время выполнения:" >> $GITHUB_STEP_SUMMARY
           echo "- ⏰ Завершено: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧹 Очистка:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🗑️ Автоматическое удаление изображений старше 3 дней" >> $GITHUB_STEP_SUMMARY
+          echo "- 📅 Сохраняются только актуальные графики" >> $GITHUB_STEP_SUMMARY
